@@ -1,0 +1,23 @@
+# Ignore data outputs
+linear.dat
+boost.dat
+k_modes.txt
+
+# Ignore plots
+*.pdf
+
+# Ignore Cosmosis output directory
+output/
+
+# Ignore Python cache
+__pycache__/
+
+# Ignore sampler files
+test_LHS_CAMB.list
+test_LHS_CAMB.npz
+
+# Ignore any other temporary or intermediate files
+*.tmp
+*.bak
+*.swp
+
