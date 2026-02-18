@@ -95,7 +95,7 @@ ax.fill_between(k_modes,
                 alpha=0.3, label='16-84 percentile')
 ax.axhline(0.01, color='r', linestyle='--', label='1% target')
 ax.set_xlabel('k [h/Mpc]')
-ax.set_ylabel('Relative Error |ΔP/P|')
+ax.set_ylabel('Relative Error |dP/P|')
 ax.set_title(f'Emulator Accuracy: {SPECTRA_TYPE.capitalize()} Power Spectrum')
 ax.legend()
 ax.grid(True, alpha=0.3)
@@ -115,9 +115,9 @@ for idx, ax in zip(sample_indices, axes.flat):
     z = params_test['z'][idx]
     om = params_test['omega_m'][idx]
     h0 = params_test['h0'][idx]
-    ax.set_title(f'z={z:.2f}, Ωm={om:.3f}, h={h0:.2f}')
+    ax.set_title(f'z={z:.2f}, Om={om:.3f}, h={h0:.2f}')
     ax.set_xlabel('k [h/Mpc]')
-    ax.set_ylabel('P(k) [(Mpc/h)³]')
+    ax.set_ylabel('P(k) [(Mpc/h)^3]')
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
 

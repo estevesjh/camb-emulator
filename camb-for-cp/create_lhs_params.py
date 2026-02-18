@@ -2,10 +2,10 @@
 """
 Generate Latin Hypercube Samples for CAMB emulator training.
 
-Parameters (CosmoSIS convention - physical density fractions, not h² units):
+Parameters (CosmoSIS convention - physical density fractions, not h^2 units):
 - h0: reduced Hubble constant H0/100
-- omega_m: total matter density fraction Ω_m
-- omega_b: baryon density fraction Ω_b
+- omega_m: total matter density fraction Omega_m
+- omega_b: baryon density fraction Omega_b
 - n_s: scalar spectral index
 - log1e10As: log(10^10 A_s) primordial amplitude
 - mnu: sum of neutrino masses in eV
@@ -23,14 +23,14 @@ import pyDOE
 n_samples = 200000  # Number of LHS samples (cosmologies)
 
 # Parameter ranges (min, max)
-# These use CosmoSIS convention: Ω (density fractions), not ω = Ω·h²
+# These use CosmoSIS convention: Omega (density fractions), not omega = Omega*h^2
 param_ranges = {
     "h0":        (0.4, 1.0),      # H0/100, wide range
-    "omega_m":   (0.02, 1.0),     # Ω_m, matter density fraction
-    "omega_b":   (0.05, 0.06),    # Ω_b, baryon density fraction
+    "omega_m":   (0.02, 1.0),     # Omega_m, matter density fraction
+    "omega_b":   (0.05, 0.06),    # Omega_b, baryon density fraction
     "n_s":       (0.87, 1.07),    # scalar spectral index
     "log1e10As": (-3.0, 7.0),     # log(10^10 A_s), primordial amplitude
-    "mnu":       (0.0, 0.2),      # Σm_ν in eV, neutrino mass sum
+    "mnu":       (0.0, 0.2),      # Sum(m_nu) in eV, neutrino mass sum
 }
 
 # Output files
