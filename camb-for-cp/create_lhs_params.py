@@ -12,10 +12,24 @@ Parameters (CosmoSIS convention - physical density fractions, not h^2 units):
 
 Note: Redshift z is NOT sampled here - CAMB outputs P(k) at multiple z values
 in a single run (configured via zmin, zmax, nz in camb_pipeline.ini).
+
+Usage:
+    python create_lhs_params.py [--use-pydoe]
+
+By default, uses scipy.stats.qmc.LatinHypercube (fast).
+Use --use-pydoe flag to use pyDOE with maximin criterion (slow but traditional).
 """
 
+import argparse
 import numpy as np
-import pyDOE
+
+# -----------------------------
+# Parse arguments
+# -----------------------------
+parser = argparse.ArgumentParser(description="Generate LHS samples for CAMB emulator")
+parser.add_argument("--use-pydoe", action="store_true",
+                    help="Use pyDOE with maximin criterion (slow) instead of scipy (fast)")
+args = parser.parse_args()
 
 # -----------------------------
 # Configuration
@@ -43,10 +57,18 @@ summary_file = "LHS_params_summary.txt"
 param_names = list(param_ranges.keys())
 n_params = len(param_names)
 
-print(f"Generating {n_samples} LHS samples for {n_params} parameters...")
+print("Generating {} LHS samples for {} parameters...".format(n_samples, n_params))
 
 # Generate LHS in unit hypercube [0,1]^n_params
-lhs = pyDOE.lhs(n_params, samples=n_samples, criterion='maximin')
+if args.use_pydoe:
+    import pyDOE
+    print("Using pyDOE with maximin criterion (this may take a long time)...")
+    lhs = pyDOE.lhs(n_params, samples=n_samples, criterion='maximin')
+else:
+    from scipy.stats.qmc import LatinHypercube
+    print("Using scipy.stats.qmc.LatinHypercube (fast)...")
+    sampler = LatinHypercube(d=n_params, seed=42)
+    lhs = sampler.random(n=n_samples)
 
 # Scale to physical parameter ranges
 params = {}

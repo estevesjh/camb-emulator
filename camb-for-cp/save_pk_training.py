@@ -6,13 +6,26 @@ Output format (per row):
 
 Files produced:
   - k_modes.txt: k values in h/Mpc
-  - linear.dat: linear P(k) for each (cosmology, z) combination
-  - boost.dat: non-linear boost P_nl/P_lin for each (cosmology, z) combination
+  - linear.dat (or linear_rank{N}.dat in MPI mode): linear P(k) for each (cosmology, z) combination
+  - boost.dat (or boost_rank{N}.dat in MPI mode): non-linear boost P_nl/P_lin for each (cosmology, z) combination
+
+In MPI mode, each rank writes to separate files. Use merge_pk_outputs.py to combine them.
 """
 
 import numpy as np
 from cosmosis.datablock import names
 import os
+
+# Check for MPI
+try:
+    from mpi4py import MPI
+    COMM = MPI.COMM_WORLD
+    RANK = COMM.Get_rank()
+    SIZE = COMM.Get_size()
+except ImportError:
+    COMM = None
+    RANK = 0
+    SIZE = 1
 
 # ============================================================
 # PARAMETER NAMES - ORDER MUST MATCH create_lhs_params_list.py
@@ -26,9 +39,13 @@ PARAM_NAMES = [
     "mnu",
 ]
 
-# Output files
-LINEAR_FILE = "linear.dat"
-BOOST_FILE = "boost.dat"
+# Output files - use rank-specific names in MPI mode
+if SIZE > 1:
+    LINEAR_FILE = "linear_rank{}.dat".format(RANK)
+    BOOST_FILE = "boost_rank{}.dat".format(RANK)
+else:
+    LINEAR_FILE = "linear.dat"
+    BOOST_FILE = "boost.dat"
 K_FILE = "k_modes.txt"
 
 # -----------------------------
@@ -44,9 +61,14 @@ def setup(options):
     """
     Initialize module. Delete old output files if they exist.
     """
+    # Each rank cleans up its own files
     for f in [LINEAR_FILE, BOOST_FILE]:
         if os.path.exists(f):
             os.remove(f)
+
+    # Only rank 0 handles k_modes.txt
+    if RANK == 0 and os.path.exists(K_FILE):
+        os.remove(K_FILE)
 
     return {"k_saved": False, "count": 0}
 
@@ -64,10 +86,11 @@ def execute(block, config):
         z_arr = block[names.matter_power_lin, "z"]      # shape (nz,)
         k = block[names.matter_power_lin, "k_h"]        # shape (nk,)
 
-        # --- Save k-modes once ---
+        # --- Save k-modes once (rank 0 only) ---
         if not config["k_saved"]:
-            np.savetxt(K_FILE, k, fmt="%.10e")
-            print(f"Saved {len(k)} k-modes to {K_FILE}")
+            if RANK == 0:
+                np.savetxt(K_FILE, k, fmt="%.10e")
+                print("Saved {} k-modes to {}".format(len(k), K_FILE))
             config["k_saved"] = True
 
         # --- Get cosmological parameters ---
@@ -113,6 +136,10 @@ def execute(block, config):
 
 def cleanup(config):
     """Print final summary."""
-    print(f"\nFinished processing {config['count']} cosmologies")
-    print(f"Output files: {LINEAR_FILE}, {BOOST_FILE}, {K_FILE}")
+    print("\nRank {} finished processing {} cosmologies".format(RANK, config['count']))
+    print("Output files: {}, {}".format(LINEAR_FILE, BOOST_FILE))
+    if RANK == 0:
+        print("k-modes saved to: {}".format(K_FILE))
+        if SIZE > 1:
+            print("\nTo merge rank files, run: python merge_pk_outputs.py")
     return 0
