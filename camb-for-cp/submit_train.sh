@@ -6,7 +6,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --gpus=4
-#SBATCH --time=02:00:00
+#SBATCH --time=09:00:00
 #SBATCH --account=des_g
 #SBATCH --output=train_emulator_%j.out
 #SBATCH --error=train_emulator_%j.err
