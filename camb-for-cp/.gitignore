@@ -1,23 +1,44 @@
-# Ignore data outputs
+# Raw CAMB data outputs
 linear.dat
 boost.dat
+linear_train.dat
+linear_test.dat
+boost_train.dat
+boost_test.dat
 k_modes.txt
 
-# Ignore plots
+# LHS parameter files (generated)
+LHS_params.npz
+LHS_params.list
+LHS_params_summary.txt
+
+# Training data directory
+training_data/
+
+# Trained models
+*.pkl
+
+# Plots
+plots/
 *.pdf
 
-# Ignore Cosmosis output directory
+# SLURM logs
+logs/
+
+# CosmoSIS output directory
 output/
 
-# Ignore Python cache
+# Python cache
 __pycache__/
 
-# Ignore sampler files
+# Jupyter
+.ipynb_checkpoints/
+
+# Test sampler files
 test_LHS_CAMB.list
 test_LHS_CAMB.npz
 
-# Ignore any other temporary or intermediate files
+# Temporary files
 *.tmp
 *.bak
 *.swp
-

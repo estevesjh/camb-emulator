@@ -84,27 +84,36 @@ Creates `training_data/` directory with:
 ### 5. Train emulator
 
 ```bash
-python train_emulator.py
+# Debug run (1M samples, 30 min on debug queue)
+sbatch submit_train_debug.sh
+
+# Full run (16M samples, ~7 hours on A100-80GB)
+sbatch submit_train.sh
 ```
 
 Trains CosmoPower NN with:
-- 4 hidden layers × 512 neurons
-- Progressive learning rates: 1e-2 → 1e-6
-- Progressive batch sizes: 1k → 50k
-- Mixed precision on GPU
+- 4 hidden layers x 512 neurons
+- 3-phase learning rate schedule: 1e-3, 3e-4, 1e-4
+- Progressive batch sizes (dataset-size dependent):
+  - Large (>5M): 200k, 500k, 1M
+  - Medium (500k-5M): 5k, 10k, 50k
+  - Small (<500k): 1k, 5k, 10k
+- Mixed precision (float16) on GPU
+- Requires A100-80GB for large batch schedule (`-C gpu&hbm80g`)
 
-Output: `camb_linear_emulator` model files
+Output: `camb_linear_emulator.pkl` model file
 
-### 6. Test emulator
+### 6. Evaluate emulator
 
-```bash
-python test_emulator.py
+The training script automatically evaluates on the held-out test set and prints
+RMSE and fractional error statistics. For detailed analysis and plots, see:
+
+```
+evaluate_emulator.ipynb
 ```
 
-Generates accuracy metrics and plots in `plots/`:
-- `linear_error_vs_k.png` - Relative error vs k
-- `linear_comparison.png` - Example spectra comparisons
-- `linear_error_hist.png` - Error distribution
+This notebook reproduces Figure 2 from the
+[CosmoPower paper](https://arxiv.org/abs/2106.03846) and compares accuracy.
 
 ## File Reference
 
@@ -120,6 +129,7 @@ Generates accuracy metrics and plots in `plots/`:
 | `clean_and_split_data.py` | Data cleaning and 80/20 split |
 | `train_emulator.py` | CosmoPower NN training |
 | `test_emulator.py` | Accuracy testing and plots |
+| `evaluate_emulator.ipynb` | Evaluation notebook with plots |
 | `run_training_pipeline.sh` | Master script for full pipeline |
 
 ### Test Pipeline (original)
@@ -171,8 +181,43 @@ camb-for-cp/
 - tensorflow 2.x
 - cosmopower
 
+## Training Results
+
+Trained on 16M samples (200k cosmologies x 100 redshifts), evaluated on 4M held-out test samples.
+
+### Test set accuracy
+
+| Metric | Value |
+|--------|-------|
+| RMSE [log10 P(k)] | 0.0398 |
+| Median |dP/P| | 0.26% |
+| 95th percentile |dP/P| | 2.45% |
+| 99th percentile |dP/P| | 12.7% |
+| Samples < 1% error | 86.3% |
+| Samples < 5% error | 97.7% |
+| Samples < 10% error | 98.8% |
+
+### Training configuration
+
+| Phase | Learning rate | Batch size | Max epochs | Val loss |
+|-------|--------------|------------|------------|----------|
+| 1 | 1e-3 | 200,000 | 100 | 0.0376 |
+| 2 | 3e-4 | 500,000 | 200 | 0.0351 |
+| 3 | 1e-4 | 1,000,000 | 300 | 0.0345 |
+
+Total training time: ~7 hours on a single A100-SXM4-80GB.
+
+### Comparison with CosmoPower
+
+See `evaluate_emulator.ipynb` for a detailed comparison with
+[Spurio Mancini et al. (2022)](https://arxiv.org/abs/2106.03846).
+Note that this emulator covers a wider parameter space (h in [0.4, 1.0],
+Omega_m in [0.02, 1.0]) compared to the CosmoPower paper, and includes
+neutrino mass as an additional parameter.
+
 ## Notes
 
 - CAMB computation is the bottleneck; use MPI for large runs
 - GPU recommended for NN training (mixed precision enabled)
-- The emulator predicts log₁₀P(k), not P(k) directly
+- The emulator predicts log10 P(k), not P(k) directly
+- Full training requires A100-80GB GPUs (`-C gpu&hbm80g` on Perlmutter)

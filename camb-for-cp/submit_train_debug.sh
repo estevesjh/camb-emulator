@@ -13,15 +13,16 @@
 
 cd $SLURM_SUBMIT_DIR
 
-# Activate cosmopower environment
-conda activate /global/common/software/des/common/Conda_Envs/jesteves_cosmopower
+# Load NERSC TensorFlow module (includes CUDA 12.2, cuDNN, NCCL)
+module load tensorflow/2.15.0
 
 echo "Starting emulator training (DEBUG)"
 echo "Date: $(date)"
 echo "GPUs: $SLURM_GPUS"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+python -c "import tensorflow as tf; print('TF GPUs:', tf.config.list_physical_devices('GPU'))"
 
-# Debug run with 100k samples
-python train_emulator.py --spectra linear --nsamples 100000
+# Debug run with 1M samples
+python train_emulator.py --spectra linear --nsamples 1000000
 
 echo "Finished: $(date)"

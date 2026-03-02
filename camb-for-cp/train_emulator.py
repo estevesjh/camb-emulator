@@ -52,14 +52,18 @@ HIDDEN_LAYERS = [512, 512, 512, 512]
 
 # Training hyperparameters - scaled for large datasets (16M samples)
 # Batch sizes are large to keep steps/epoch manageable on GPU
-LEARNING_RATES = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
-BATCH_SIZES_LARGE = [50000, 100000, 200000, 500000, 500000]
-BATCH_SIZES_SMALL = [1000, 5000, 10000, 20000, 50000]
-MAX_EPOCHS = [100, 200, 300, 500, 1000]
-PATIENCE = [20, 20, 20, 20, 20]
+# Note: lr=1e-2 caused loss explosions; start at 1e-3 for stability.
+# Batch sizes capped at 1M to stay within A100-80GB memory.
+LEARNING_RATES = [1e-3, 3e-4, 1e-4]
+BATCH_SIZES_LARGE = [200000, 500000, 1000000]
+BATCH_SIZES_MEDIUM = [5000, 10000, 50000]
+BATCH_SIZES_SMALL = [1000, 5000, 10000]
+MAX_EPOCHS = [100, 200, 300]
+PATIENCE = [30, 30, 30]
 
-# Threshold to switch between small/large batch schedules
+# Thresholds to switch between batch schedules
 LARGE_DATASET_THRESHOLD = 5_000_000
+MEDIUM_DATASET_THRESHOLD = 500_000
 
 # -----------------------------
 # Setup
@@ -74,15 +78,12 @@ if gpus:
     mixed_precision.set_global_policy('mixed_float16')
     print("Mixed precision enabled")
 
-# Multi-GPU strategy
-if n_gpus > 1:
-    strategy = tf.distribute.MirroredStrategy()
-    print(f"Using MirroredStrategy across {strategy.num_replicas_in_sync} GPUs")
-    # Scale batch sizes by number of GPUs (each GPU processes batch_size / n_gpus)
-    GPU_SCALE = strategy.num_replicas_in_sync
-else:
-    strategy = None
-    GPU_SCALE = 1
+# Use single GPU — CosmoPower's optimizer is not compatible with MirroredStrategy
+# Restrict to GPU:0 for reliable training
+if n_gpus >= 1:
+    tf.config.set_visible_devices(gpus[0], 'GPU')
+    print(f"Using single GPU: {gpus[0].name}")
+GPU_SCALE = 1
 
 np.random.seed(42)
 tf.random.set_seed(42)
@@ -143,9 +144,12 @@ for name in MODEL_PARAMETERS:
 if n_total >= LARGE_DATASET_THRESHOLD:
     batch_sizes = [bs * GPU_SCALE for bs in BATCH_SIZES_LARGE]
     print(f"\nUsing LARGE batch schedule (dataset >= {LARGE_DATASET_THRESHOLD:,})")
+elif n_total >= MEDIUM_DATASET_THRESHOLD:
+    batch_sizes = [bs * GPU_SCALE for bs in BATCH_SIZES_MEDIUM]
+    print(f"\nUsing MEDIUM batch schedule (dataset >= {MEDIUM_DATASET_THRESHOLD:,})")
 else:
     batch_sizes = [bs * GPU_SCALE for bs in BATCH_SIZES_SMALL]
-    print(f"\nUsing SMALL batch schedule (dataset < {LARGE_DATASET_THRESHOLD:,})")
+    print(f"\nUsing SMALL batch schedule (dataset < {MEDIUM_DATASET_THRESHOLD:,})")
 
 if GPU_SCALE > 1:
     print(f"  Batch sizes scaled {GPU_SCALE}x for {n_gpus} GPUs")
@@ -185,12 +189,7 @@ def build_model():
             verbose=True,
         )
 
-# Build model inside strategy scope for multi-GPU
-if strategy is not None:
-    with strategy.scope():
-        cp_nn = build_model()
-else:
-    cp_nn = build_model()
+cp_nn = build_model()
 
 print(f"\nStarting training...")
 print(f"  Learning rates: {LEARNING_RATES}")
@@ -207,10 +206,79 @@ cp_nn.train(
 
     learning_rates=LEARNING_RATES,
     batch_sizes=batch_sizes,
-    gradient_accumulation_steps=[1, 1, 1, 1, 1],
+    gradient_accumulation_steps=[1, 1, 1],
     patience_values=PATIENCE,
     max_epochs=MAX_EPOCHS,
 )
 
 print(f"\nTraining complete! ({time.time() - t_train:.1f}s)")
 print(f"Model saved as: {MODEL_NAME}")
+
+# -----------------------------
+# Evaluate on held-out test set
+# -----------------------------
+print(f"\n{'='*60}")
+print(f"Evaluating on test set...")
+
+test_params_npy = os.path.join(DATA_DIR, f"camb_{SPECTRA_TYPE}_params_test.npy")
+test_features_npy = os.path.join(DATA_DIR, f"camb_{SPECTRA_TYPE}_logpower_test.npy")
+
+test_params_npz = os.path.join(DATA_DIR, f"camb_{SPECTRA_TYPE}_params_test.npz")
+test_features_npz = os.path.join(DATA_DIR, f"camb_{SPECTRA_TYPE}_logpower_test.npz")
+
+if os.path.exists(test_params_npy) and os.path.exists(test_features_npy):
+    test_params_arr = np.load(test_params_npy)
+    test_features_true = np.load(test_features_npy)
+    test_parameters = {name: test_params_arr[:, i] for i, name in enumerate(MODEL_PARAMETERS)}
+elif os.path.exists(test_params_npz) and os.path.exists(test_features_npz):
+    test_params_data = np.load(test_params_npz)
+    test_features_data = np.load(test_features_npz)
+    test_parameters = {name: test_params_data[name] for name in MODEL_PARAMETERS}
+    test_features_true = test_features_data['features']
+else:
+    print("No test data found, skipping evaluation.")
+    test_features_true = None
+
+if test_features_true is not None:
+    n_test = len(test_features_true)
+    print(f"  Test samples: {n_test:,}")
+
+    # Predict in batches to avoid OOM
+    EVAL_BATCH = 50000
+    predictions = []
+    for i in range(0, n_test, EVAL_BATCH):
+        batch_params = {name: test_parameters[name][i:i+EVAL_BATCH]
+                        for name in MODEL_PARAMETERS}
+        predictions.append(cp_nn.predictions_np(batch_params))
+    test_features_pred = np.concatenate(predictions, axis=0)
+
+    # RMSE in log10(P(k)) space
+    residuals = test_features_pred - test_features_true
+    rmse_log = np.sqrt(np.mean(residuals**2))
+    rmse_log_per_mode = np.sqrt(np.mean(residuals**2, axis=0))
+
+    # Fractional error in linear P(k) space: |10^(pred-true) - 1|
+    # This avoids overflow from computing 10^pred and 10^true separately
+    frac_error = np.abs(np.power(10.0, np.clip(residuals, -30, 30)) - 1.0)
+    median_frac = np.median(frac_error)
+    pct95_frac = np.percentile(frac_error, 95)
+    pct99_frac = np.percentile(frac_error, 99)
+
+    # Fraction of predictions within accuracy thresholds
+    within_01 = np.mean(frac_error < 0.01) * 100  # < 1%
+    within_05 = np.mean(frac_error < 0.05) * 100  # < 5%
+    within_10 = np.mean(frac_error < 0.10) * 100  # < 10%
+
+    print(f"\n  Results on test set ({n_test:,} samples, {len(modes)} k-modes):")
+    print(f"  -----------------------------------------------")
+    print(f"  RMSE [log10 P(k)]:        {rmse_log:.6f}")
+    print(f"  RMSE [log10 P(k)] range:  [{rmse_log_per_mode.min():.6f}, {rmse_log_per_mode.max():.6f}]")
+    print(f"  Fractional error |dP/P|:")
+    print(f"    median:                  {median_frac:.4%}")
+    print(f"    95th percentile:         {pct95_frac:.4%}")
+    print(f"    99th percentile:         {pct99_frac:.4%}")
+    print(f"  Samples within accuracy:")
+    print(f"    |dP/P| < 1%%:            {within_01:.1f}%")
+    print(f"    |dP/P| < 5%%:            {within_05:.1f}%")
+    print(f"    |dP/P| < 10%%:           {within_10:.1f}%")
+    print(f"  -----------------------------------------------")
