@@ -40,7 +40,7 @@ This pipeline:
 ### 1. Generate LHS parameters
 
 ```bash
-python create_lhs_params.py
+python scripts/create_lhs_params.py
 ```
 
 Creates `LHS_params.npz` with 200,000 cosmology samples.
@@ -48,7 +48,7 @@ Creates `LHS_params.npz` with 200,000 cosmology samples.
 ### 2. Convert to CosmoSIS list format
 
 ```bash
-python create_lhs_params_list.py
+python scripts/create_lhs_params_list.py
 ```
 
 Creates `LHS_params.list` for the CosmoSIS list sampler.
@@ -73,7 +73,7 @@ Data format per row: `[h0, omega_m, omega_b, n_s, log1e10As, mnu, z, P(k₁), P(
 ### 4. Clean and split data
 
 ```bash
-python clean_and_split_data.py
+python scripts/clean_and_split_data.py
 ```
 
 Creates `training_data/` directory with:
@@ -85,10 +85,10 @@ Creates `training_data/` directory with:
 
 ```bash
 # Debug run (1M samples, 30 min on debug queue)
-sbatch submit_train_debug.sh
+sbatch slurm/submit_train_debug.sh
 
 # Full run (16M samples, ~7 hours on A100-80GB)
-sbatch submit_train.sh
+sbatch slurm/submit_train.sh
 ```
 
 Trains CosmoPower NN with:
@@ -117,53 +117,71 @@ This notebook reproduces Figure 2 from the
 
 ## File Reference
 
-### Training Pipeline (new)
+### Python Scripts (`scripts/`)
 
 | File | Description |
 |------|-------------|
 | `create_lhs_params.py` | Generate 200k LHS samples (6 params) |
 | `create_lhs_params_list.py` | Convert .npz to CosmoSIS .list format |
-| `values_training.ini` | Parameter ranges for training |
-| `camb_pipeline_training.ini` | CosmoSIS pipeline config (z=0-2) |
 | `save_pk_training.py` | CosmoSIS module to save P(k) |
 | `clean_and_split_data.py` | Data cleaning and 80/20 split |
+| `merge_pk_outputs_parallel.py` | Merge MPI rank outputs into single files |
 | `train_emulator.py` | CosmoPower NN training |
 | `test_emulator.py` | Accuracy testing and plots |
-| `evaluate_emulator.ipynb` | Evaluation notebook with plots |
-| `run_training_pipeline.sh` | Master script for full pipeline |
+| `make_test_lhs_params.py` | Generate small test LHS (10 samples) |
+| `save_pk.py` | Test save module |
+| `check_camb_spectra_10.py` | Plot test spectra |
 
-### Test Pipeline (original)
+### SLURM Job Scripts (`slurm/`)
 
 | File | Description |
 |------|-------------|
-| `make_test_lhs_params.py` | Generate small test LHS (10 samples) |
-| `make_test_lhs_params_list.py` | Convert test params to .list |
-| `camb_pipeline.ini` | Test pipeline config (z=0-1) |
-| `save_pk.py` | Test save module |
-| `y1_mock_values.ini` | Test parameter values |
-| `check_camb_spectra_10.py` | Plot test spectra |
+| `submit_camb_training.sh` | Run CAMB via CosmoSIS with MPI |
+| `submit_merge.sh` | Merge parallel CAMB outputs |
+| `submit_clean_split.sh` | Clean and split data |
+| `submit_train.sh` | Full training (16M samples, A100-80GB) |
+| `submit_train_debug.sh` | Debug training (1M samples, 30 min) |
 
-## Output Structure
+### Config and Pipeline
+
+| File | Description |
+|------|-------------|
+| `camb_pipeline_training.ini` | CosmoSIS pipeline config (z=0-2) |
+| `camb_pipeline.ini` | Test pipeline config (z=0-1) |
+| `values_training.ini` | Parameter ranges for training |
+| `y1_mock_values.ini` | Test parameter values |
+| `run_training_pipeline.sh` | Master script for full pipeline |
+| `evaluate_emulator.ipynb` | Evaluation notebook with plots |
+
+## Directory Structure
 
 ```
 camb-for-cp/
-├── LHS_params.npz              # Parameter samples
-├── LHS_params.list             # CosmoSIS input
-├── linear.dat                  # CAMB linear P(k)
-├── boost.dat                   # CAMB non-linear boost
-├── k_modes.txt                 # k-mode values
-├── training_data/
-│   ├── camb_linear_params_train.npz
-│   ├── camb_linear_params_test.npz
-│   ├── camb_linear_logpower_train.npz
-│   ├── camb_linear_logpower_test.npz
-│   └── ... (same for boost)
-├── camb_linear_emulator*       # Trained model
-├── camb_boost_emulator*        # Trained model (boost)
-└── plots/
-    ├── linear_error_vs_k.png
-    ├── linear_comparison.png
-    └── linear_error_hist.png
+├── scripts/                        # Python pipeline scripts
+│   ├── create_lhs_params.py
+│   ├── clean_and_split_data.py
+│   ├── train_emulator.py
+│   └── ...
+├── slurm/                          # NERSC SLURM job scripts
+│   ├── submit_train.sh
+│   ├── submit_camb_training.sh
+│   └── ...
+├── logs/                           # SLURM job output files
+├── training_data/                  # Processed .npy arrays
+│   ├── camb_linear_params_train.npy
+│   ├── camb_linear_logpower_train.npy
+│   └── ... (train/test for linear & boost)
+├── plots/                          # Evaluation plots
+│   ├── fig2_error_vs_k.png
+│   ├── error_per_kmode.png
+│   ├── error_vs_redshift.png
+│   └── example_spectra.png
+├── camb_linear_emulator.pkl        # Trained model
+├── evaluate_emulator.ipynb         # Evaluation notebook
+├── run_training_pipeline.sh        # Master pipeline script
+├── *.ini                           # CosmoSIS config files
+├── linear.dat                      # Raw CAMB output (~62 GB)
+└── boost.dat                       # Raw CAMB output (~62 GB)
 ```
 
 ## Expected Output Size

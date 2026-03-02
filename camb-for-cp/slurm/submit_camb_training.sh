@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --time=01:30:00
 #SBATCH --account=des
-#SBATCH --output=camb_training_%j.out
-#SBATCH --error=camb_training_%j.err
+#SBATCH --output=logs/camb_training_%j.out
+#SBATCH --error=logs/camb_training_%j.err
 
 # Load cosmosis environment
 export TOP_DIR=/global/common/software/des/jesteves

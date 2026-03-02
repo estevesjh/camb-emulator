@@ -18,8 +18,7 @@ training_data/
 # Trained models
 *.pkl
 
-# Plots
-plots/
+# Plots (PDFs only; PNGs are tracked)
 *.pdf
 
 # SLURM logs

@@ -42,7 +42,7 @@ echo ""
 echo "=========================================="
 echo "Step 1: Generating LHS parameter samples"
 echo "=========================================="
-python create_lhs_params.py
+python scripts/create_lhs_params.py
 
 # -----------------------------
 # Step 2: Create CosmoSIS list
@@ -51,7 +51,7 @@ echo ""
 echo "=========================================="
 echo "Step 2: Creating CosmoSIS list file"
 echo "=========================================="
-python create_lhs_params_list.py
+python scripts/create_lhs_params_list.py
 
 # -----------------------------
 # Step 3: Run CAMB via CosmoSIS
@@ -94,7 +94,7 @@ echo ""
 echo "=========================================="
 echo "Step 4: Cleaning and splitting data"
 echo "=========================================="
-python clean_and_split_data.py
+python scripts/clean_and_split_data.py
 
 # -----------------------------
 # Step 5: Train emulator
@@ -103,7 +103,7 @@ echo ""
 echo "=========================================="
 echo "Step 5: Training neural network emulator"
 echo "=========================================="
-python train_emulator.py
+python scripts/train_emulator.py
 
 # -----------------------------
 # Step 6: Test emulator
@@ -112,7 +112,7 @@ echo ""
 echo "=========================================="
 echo "Step 6: Testing emulator accuracy"
 echo "=========================================="
-python test_emulator.py
+python scripts/test_emulator.py
 
 # -----------------------------
 # Done
