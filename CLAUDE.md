@@ -66,36 +66,37 @@ python scripts/clean_and_split_data.py
 
 No test framework, no linter — this is a research pipeline.
 
-## Planned refactor: multi-quantity emulator (P(k), σ(R), ξ_NL)
+## Planned refactor: three-quantity emulator (P_lin total, boost, P_lin no-ν)
 
-Goal: extend beyond P(k) to also emulate `σ(R, z)` and `ξ_NL(r, z)`. Current code hard-codes `linear`/`boost` literals across `save_pk_training.py`, `clean_and_split_data.py`, `train_emulator.py`, and the SLURM scripts — adding two more quantities by copy-paste would 4x the duplication.
+Goal: emulate three quantities so the downstream CosmoSIS halo-model pipeline gets all the linear / non-linear spectra it needs:
+
+1. **`linear`** — `delta_tot` linear P(k) (total matter, **includes neutrinos**). From CAMB `matter_power_lin`.
+2. **`boost`** — `P_nl / P_lin` of `delta_tot`. From `matter_power_nl / matter_power_lin`.
+3. **`linear_nonu`** — `delta_nonu` linear P(k) (CDM+baryon, **no neutrinos**). From CAMB `cdm_baryon_power_lin`. **NEW** — needed by `mf_tinker` with `matter_power_lin_version = 2`, which reads `cdm_baryon_power_lin` instead of `matter_power_lin` (see `cosmosis-standard-library/mass_function/mf_tinker/interface_tools.f90:49`). Without it, the Tinker mass function is called with the wrong input for massive-neutrino cosmologies.
+
+All remaining halo-model quantities (σ(R, z), dn/dM, b(M), ξ_NL(r, z)) derive at inference from these three — see "Derived quantities" below.
+
+Current code hard-codes `linear`/`boost` literals across `save_pk_training.py`, `clean_and_split_data.py`, `train_emulator.py`, and the SLURM scripts. A registry-based refactor removes that duplication and is what makes adding the third quantity (`linear_nonu`) cheap.
 
 ### Backup
 Branch `backup/pk-emulator-only` at commit `367f56d` preserves the working P(k)-only pipeline.
 
-### Phase 1 — refactor for extensibility (no new quantities yet)
-- Introduce a quantity registry (`scripts/spectra_registry.py` or YAML) declaring, per quantity: name, CAMB datablock source, grid file (k/R/r), cleaning predicate, dtype, optional per-quantity network overrides.
-- Rewrite `save_pk_training.py` to iterate the registry and write one `.dat` per entry (shared `[params, grid, values...]` row layout).
+### Derived quantities (NOT emulated)
+The downstream CosmoSIS pipeline at `/global/common/software/des/jesteves/y1_mock_emcee.ini` reconstructs these from the emulated spectra:
+- **σ(R, z)** — `cosmosis-standard-library/boltzmann/sigma_cpp/sigma_cpp.py`, a GSL top-hat integral over P(k). ~1700 integrations for a full grid.
+- **dn/dM (Tinker)** — `cosmosis-standard-library/mass_function/mf_tinker/tinker_mf_module.so`; with `matter_power_lin_version = 2` it consumes **`cdm_baryon_power_lin`** (i.e. the new `linear_nonu` emulator), not `matter_power_lin`.
+- **b(M)** — `y3_cluster_cpp/y3_buzzard/haloModel.py:134`, `cluster_toolkit.peak_height.nu_at_M(M, k, P_lin, Ω_m)` + Tinker-2010 eq. 6. Consumes `matter_power_lin` (total).
+- **ξ_NL(r, z)** — `y3_cluster_cpp/y3_buzzard/haloModel.py:181`, `cluster_toolkit.xi.xi_mm_at_r(R, k, P_nl)`. Consumes `matter_power_nl` (total).
+
+### Refactor — registry-based rewrite
+- Introduce `scripts/spectra_registry.py` declaring each quantity: name, CAMB datablock source, grid file, cleaning predicate, dtype, optional per-quantity network overrides.
+- Rewrite `save_pk_training.py` to iterate the registry and write one `.dat` per entry (shared `[params, grid, values...]` row layout). Add the `cdm_baryon_power_lin` datablock read for `linear_nonu`.
 - Rewrite `clean_and_split_data.py` to loop the registry instead of the hard-coded `FILES` list.
-- Rewrite `train_emulator.py` to take `--quantity NAME` (drop the `linear|boost` choices); pull config from the registry.
-- Keep byte-compatible output for `linear` so the existing `.pkl` and `evaluate_emulator.ipynb` still load.
+- Rewrite `train_emulator.py` to take `--quantity NAME`; pull config from the registry.
+- Update `camb_pipeline_training.ini` to add `delta_nonu` to `power_spectra` (currently `power_spectra = delta_tot`).
+- Keep byte-compatible output for `linear` so the existing `camb_linear_emulator.pkl` and `evaluate_emulator.ipynb` still load.
 
-### Phase 2 — add σ(R, z)
-- Add `matter_sigma_r` module to `camb_pipeline_training.ini`; register `sigma_r` in the registry with its own R-grid.
-- One new SLURM script for the CAMB rerun; clean/split and training flow reuse Phase 1.
-- σ(R) is smooth/monotonic — consider a smaller network as the per-quantity override default.
-
-### Phase 3 — add ξ_NL(r, z)
-Open design question (needs user decision before implementing):
-- **(a) Emulate directly** from `matter_xi` or a post-CAMB FFT — higher accuracy, one more training dataset.
-- **(b) Derive at inference** from the trained `P_nl` emulator via FFT — no extra training, error accumulates.
-- Recommendation: (a). Add an `xi_from_pk` step (CosmoSIS module or post-processing FFTLog pass) that writes `xi_nl.dat` alongside `linear.dat` / `boost.dat`.
-
-### Phase 4 — cleanup
-- Delete legacy top-level `*.py` (`cleaning_and_split_data.py`, `cp_NNtraining_opt.py`, `create_training_spectra_mpi.py`, etc.) flagged above as non-authoritative.
-- Update `camb-for-cp/readme.md` and this file to document the registry and the three emulators.
-
-### Open questions
-1. Reuse the same 200k LHS for all three quantities (one CAMB rerun) vs. per-quantity LHS?
-2. ξ_NL via (a) direct emulation or (b) derive-at-inference?
-3. Land Phase 1 as its own PR, or bundle with Phase 2/3?
+### Follow-ups after the refactor lands
+- Re-run CAMB generation once with `power_spectra = delta_tot delta_nonu` so all three `.dat` files are produced from the same 200k LHS.
+- Train `boost` and `linear_nonu` to completion (`sbatch slurm/submit_train.sh --spectra <name>`).
+- Sanity-check the "no new emulators needed beyond these three" claim: load all three `.pkl` files, feed predicted spectra into `cluster_toolkit.peak_height.nu_at_M`, `ct.xi.xi_mm_at_r`, and the Tinker mass function, and compare against true-CAMB outputs on held-out cosmologies. Target: <1% on b(M), <2% on ξ_NL at r < 100 Mpc/h, <2% on dn/dM over the cluster-mass range.
