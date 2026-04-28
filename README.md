@@ -1,26 +1,12 @@
-In this order:
+# camb-emulator
 
-1:
-> create_hypercube.py
+Neural-network emulators for cosmological quantities from CAMB, trained with
+[CosmoPower](https://github.com/alessiospuriomancini/cosmopower).
 
-2: 
-> create_training_spectra_mpi.py
+The active pipeline lives in [`camb-for-cp/`](camb-for-cp/). See
+[`camb-for-cp/readme.md`](camb-for-cp/readme.md) for setup and usage, and
+[`CLAUDE.md`](CLAUDE.md) for architecture notes and the multi-quantity
+refactor plan (P(k), σ(R), ξ_NL).
 
-> run_create_training_spectra_mpi.sh
-
-3:
-> merge_results.py
-
-4:
-> cleaning_and_split_data.py
-
-5:
-> cp_NNtraining_opt.py
-
-
-To test results:
-> cp_NNtesting.py
-
-To test camb x classy:
-> Pk_comp.py
-
+The pre-reorganization version of the code is preserved on the
+`backup/pk-emulator-only` branch.
