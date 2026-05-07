@@ -32,6 +32,12 @@ export COSMOSIS_REPO_DIR=${TOP_DIR}/cosmosis
 export CSL_DIR=${TOP_DIR}/cosmosis-standard-library
 export COSMOSIS_STANDARD_LIBRARY=${CSL_DIR}
 export OMP_NUM_THREADS=1
+
+# Initialise conda in the fresh SLURM shell (.bashrc is NOT sourced in batch).
+# Without this, the 'conda activate' inside setup-cosmosis-nersc fails.
+module load python
+source "$(conda info --base)/etc/profile.d/conda.sh"
+
 source ${COSMOSIS_REPO_DIR}/setup-cosmosis-nersc \
     /global/common/software/des/common/Conda_Envs/y3cl_je
 
