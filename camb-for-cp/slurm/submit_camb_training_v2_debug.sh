@@ -20,7 +20,7 @@ export COSMOSIS_STANDARD_LIBRARY=${CSL_DIR}
 export OMP_NUM_THREADS=1
 source ${COSMOSIS_REPO_DIR}/setup-cosmosis-nersc /global/common/software/des/common/Conda_Envs/y3cl_je
 
-cd "$(dirname "$(realpath "$0")")/.."
+cd "${SLURM_SUBMIT_DIR:-$PSCRATCH/camb-emulator/camb-for-cp}"
 
 export SAVE_PK_PREFIX=debug_
 

@@ -15,11 +15,19 @@ git clone git@github.com:estevesjh/camb-emulator.git
 cd camb-emulator/camb-for-cp
 ```
 
+**Always `sbatch` from this directory** (`$PSCRATCH/camb-emulator/camb-for-cp`).
+Every SLURM script does `cd "${SLURM_SUBMIT_DIR}"` on the compute node,
+so outputs land under your own clone. The fallback if you forget to
+`cd` first is `$PSCRATCH/camb-emulator/camb-for-cp/` — override with:
+
+```bash
+export PSCRATCH=/pscratch/sd/<first>/<your_user>   # if not already set
+```
+
 The cosmosis and cosmopower conda envs live under
 `/global/common/software/des/common/Conda_Envs/` and are world-readable,
 so any `des`-group member can use them directly without copying.
-No write access to `/pscratch/sd/j/jesteves/` is required; all outputs
-land under your own clone.
+No write access to `/pscratch/sd/j/jesteves/` is required.
 
 ## Scale and budget
 
@@ -122,14 +130,19 @@ camb-for-cp/
 6. **Integrity check**: per-slice row counts must match between
    `linear_v2.dat` and `linear_nonu_v2.dat`. The `run_1M_pipeline.sh`
    file prints the exact snippet.
-7. **Merge** each box with `scripts/merge_pk_outputs_parallel.py`, then
-   concatenate `wide + dense` into `linear_v3c.dat` and
-   `linear_nonu_v3c.dat`.
-8. **Shuffled 90/10 split** (shared RNG across the two files so row `i`
-   is always the same cosmology). ~900k train / 100k test.
-9. **.dat → .npy** on the debug qos.
-10. **Train both emulators** on gpu_debug, one per spectrum.
-11. **Evaluate and regenerate the report.**
+7. **Post-CAMB steps** use the driver `run_1M_post_camb.sh` (one
+   invocation per step):
+   ```bash
+   ./run_1M_post_camb.sh merge     # step 7: cat all slices per box, then boxes
+   ./run_1M_post_camb.sh split     # step 8: shuffled 90/10 train/test
+   ./run_1M_post_camb.sh clean     # step 9: .dat -> .npy (SLURM debug qos)
+   ./run_1M_post_camb.sh train     # step 10: 2 GPU training jobs
+   ./run_1M_post_camb.sh report    # step 11: regen plots + PDF
+   ```
+   Each step is idempotent and safe to re-run. The merge concatenates
+   wide + dense + ultra into `linear_v3c.dat` and `linear_nonu_v3c.dat`;
+   the split uses a shared RNG across the two files so row `i` is always
+   the same cosmology in both.
 
 ## shared qos — what to know
 

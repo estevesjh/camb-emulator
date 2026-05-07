@@ -90,3 +90,4 @@ camb-for-cp/*.png
 camb-for-cp/test_LHS_CAMB.*
 camb-for-cp/plots/
 
+camb-for-cp/slices_smoke_*/

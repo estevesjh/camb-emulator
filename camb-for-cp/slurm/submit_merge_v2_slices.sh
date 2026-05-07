@@ -15,7 +15,7 @@
 # Also: pick slice000_k_modes_v2.txt as the canonical k_modes_v2.txt
 # Finally: head/tail split 90/10 into _train.dat / _test.dat
 
-cd "$(dirname "$(realpath "$0")")/.."
+cd "${SLURM_SUBMIT_DIR:-$PSCRATCH/camb-emulator/camb-for-cp}"
 
 source /global/common/software/des/jesteves/cosmosis/setup-cosmosis-nersc \
     /global/common/software/des/common/Conda_Envs/y3cl_je

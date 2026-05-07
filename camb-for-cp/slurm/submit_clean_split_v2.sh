@@ -10,7 +10,7 @@
 #SBATCH --output=logs/clean_v2_%j.out
 #SBATCH --error=logs/clean_v2_%j.err
 
-cd "$(dirname "$(realpath "$0")")/.."
+cd "${SLURM_SUBMIT_DIR:-$PSCRATCH/camb-emulator/camb-for-cp}"
 
 # Use jesteves_cosmopower env directly (no conda activate needed, just
 # call its python binary).

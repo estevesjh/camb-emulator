@@ -100,99 +100,20 @@ echo "    done"
 echo "  done'"
 
 # ===========================================================================
-# Step 4 -- Merge per-slice outputs
+# Steps 4-8 -- Merge, split, clean, train, report
 # ===========================================================================
-# After both arrays COMPLETED and the integrity check is clean, merge each
-# box into one pair of (linear, linear_nonu) .dat files, then concatenate
-# into the v3c training set.
-
-# (Run each of the following on the login node; each is a ~5 min streaming
-# cat, not SLURM-sized work.)
-
-cat <<'MERGE' > /dev/null
-${PYBIN_CAMB} scripts/merge_pk_outputs_parallel.py \
-    --glob-template 'slice*wide_{name}.dat' \
-    --output-template '{name}_1M_wide.dat' \
-    --names linear_v2 linear_nonu_v2
-
-${PYBIN_CAMB} scripts/merge_pk_outputs_parallel.py \
-    --glob-template 'slice*dense_{name}.dat' \
-    --output-template '{name}_1M_dense.dat' \
-    --names linear_v2 linear_nonu_v2
-
-${PYBIN_CAMB} scripts/merge_pk_outputs_parallel.py \
-    --glob-template 'slice*ultra_{name}.dat' \
-    --output-template '{name}_1M_ultra.dat' \
-    --names linear_v2 linear_nonu_v2
-
-cat linear_v2_1M_wide.dat      linear_v2_1M_dense.dat      linear_v2_1M_ultra.dat      > linear_v3c.dat
-cat linear_nonu_v2_1M_wide.dat linear_nonu_v2_1M_dense.dat linear_nonu_v2_1M_ultra.dat > linear_nonu_v3c.dat
-MERGE
-
-# ===========================================================================
-# Step 5 -- Shuffled 90/10 train/test split
-# ===========================================================================
-# Shared permutation across linear and linear_nonu so row i is the same
-# cosmology in both files. Seed is hardcoded so re-running reproduces the
-# same split.
-
-cat <<'SPLIT' > /dev/null
-${PYBIN_TRAIN} -c "
-import numpy as np, polars as pl
-# Read both with the SAME row order -- cat preserves slice order, slices
-# are parallel across linear/nonu, so they are already aligned.
-A = pl.read_csv('linear_v3c.dat', separator=' ', has_header=False,
-                schema_overrides=[pl.Float64], ignore_errors=True)
-A = A.select([c for c in A.columns if not A[c].is_null().all()]).to_numpy()
-B = pl.read_csv('linear_nonu_v3c.dat', separator=' ', has_header=False,
-                schema_overrides=[pl.Float64], ignore_errors=True)
-B = B.select([c for c in B.columns if not B[c].is_null().all()]).to_numpy()
-assert A.shape == B.shape, f'{A.shape} vs {B.shape}'
-rng = np.random.default_rng(20260507)
-perm = rng.permutation(len(A))
-A, B = A[perm], B[perm]
-n_train = int(len(A) * 0.9)
-np.savetxt('linear_v3c_train.dat',      A[:n_train], fmt='%.8e')
-np.savetxt('linear_v3c_test.dat',       A[n_train:], fmt='%.8e')
-np.savetxt('linear_nonu_v3c_train.dat', B[:n_train], fmt='%.8e')
-np.savetxt('linear_nonu_v3c_test.dat',  B[n_train:], fmt='%.8e')
-print(f'train={n_train} test={len(A)-n_train}')
-"
-SPLIT
-
-# ===========================================================================
-# Step 6 -- .dat -> .npy  (submits clean job on the debug qos)
-# ===========================================================================
-# Reuse submit_clean_split_v2c.sh but point it at the v3c files. If you keep
-# the same naming convention (linear_v3c / linear_nonu_v3c) you may need a
-# new slurm script; otherwise, rename the merged files to linear_v2c*.dat
-# so the existing script works unchanged.
-
-cat <<'CLEAN' > /dev/null
-sbatch slurm/submit_clean_split_v2c.sh  # (adapt SPECTRA env or file paths)
-CLEAN
-
-# ===========================================================================
-# Step 7 -- Train both emulators on GPU
-# ===========================================================================
-# 1M samples move the pipeline into the MEDIUM batch schedule in
-# train_emulator_v2.py: batches 5k / 10k / 50k, max 400/800/1200 epochs,
-# patience 30. On A100-80GB: ~20-40 min per emulator.
-
-cat <<'TRAIN' > /dev/null
-sbatch --export=SPECTRA=linear_v3c      slurm/submit_train_v2_debug.sh
-sbatch --export=SPECTRA=linear_nonu_v3c slurm/submit_train_v2_debug.sh
-TRAIN
-
-# ===========================================================================
-# Step 8 -- Regenerate report and update plots
-# ===========================================================================
-
-cat <<'REPORT' > /dev/null
-${PYBIN_TRAIN} scripts/make_report_plots.py   # adapt to load v3c emulators
-cd report && pdflatex emulator_v2_report.tex && pdflatex emulator_v2_report.tex
-REPORT
+# Once all three CAMB arrays show COMPLETED and the integrity check is clean,
+# continue the pipeline with run_1M_post_camb.sh (one step per invocation):
+#
+#   ./run_1M_post_camb.sh merge     # step 4: concat .dat files, ~5 min login
+#   ./run_1M_post_camb.sh split     # step 5: shuffled 90/10 train/test
+#   ./run_1M_post_camb.sh clean     # step 6: .dat -> .npy (SLURM debug)
+#   ./run_1M_post_camb.sh train     # step 7: 2 GPU training jobs
+#   ./run_1M_post_camb.sh report    # step 8: regenerate plots + PDF
 
 echo ""
-echo "NOTE: Step 1-3 are live. Steps 4-8 are printed above as templates."
-echo "      Execute them manually after each prior step is verified COMPLETED."
+echo "When arrays finish, continue with:"
+echo "  ./run_1M_post_camb.sh merge && ./run_1M_post_camb.sh split"
+echo "  ./run_1M_post_camb.sh clean  (then wait for SLURM)"
+echo "  ./run_1M_post_camb.sh train  (then wait for SLURM)"
+echo "  ./run_1M_post_camb.sh report"

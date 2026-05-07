@@ -10,7 +10,7 @@
 #SBATCH --output=logs/merge_v2_%j.out
 #SBATCH --error=logs/merge_v2_%j.err
 
-cd $SLURM_SUBMIT_DIR/..
+cd "${SLURM_SUBMIT_DIR:-$PSCRATCH/camb-emulator/camb-for-cp}"
 
 echo "Starting v2 streaming merge"
 echo "Date: $(date)"

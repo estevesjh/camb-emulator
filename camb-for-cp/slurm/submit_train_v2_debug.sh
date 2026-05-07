@@ -14,7 +14,7 @@
 # Pass SPECTRA via --export, e.g.
 #   sbatch --export=SPECTRA=linear_v2 slurm/submit_train_v2_debug.sh
 
-cd "$(dirname "$(realpath "$0")")/.."
+cd "${SLURM_SUBMIT_DIR:-$PSCRATCH/camb-emulator/camb-for-cp}"
 
 module load tensorflow/2.15.0
 
