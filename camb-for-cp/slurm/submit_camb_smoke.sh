@@ -52,6 +52,6 @@ echo "out prefix:  ${SAVE_PK_PREFIX}"
 echo "date:        $(date)"
 echo "=========================================="
 
-cosmosis configs/camb_pipeline_training_v2_array.ini
+cosmosis configs/camb_pipeline_training_1M.ini
 
 echo "Finished (${BOX}): $(date)"

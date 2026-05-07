@@ -74,6 +74,6 @@ echo "Date:         $(date)"
 echo "========================================="
 
 # Uses the v2_array.ini config (reads ${LHS_SLICE_FILE} from env).
-cosmosis configs/camb_pipeline_training_v2_array.ini
+cosmosis configs/camb_pipeline_training_1M.ini
 
 echo "Finished task ${SLURM_ARRAY_TASK_ID} (${BOX}): $(date)"
