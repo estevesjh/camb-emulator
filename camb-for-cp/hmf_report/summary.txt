@@ -1,0 +1,23 @@
+# numbers consumed by report.tex
+
+# --- N_i(lambda, z) from the full-integral pipeline ---
+# CAMB reference
+# z_bin \ lambda_bin: [20, 30) [30, 45) [45, 60) [60, $\infty$)
+[0.20, 0.35):  5.693e+02  2.204e+02  5.959e+01  3.537e+01
+[0.35, 0.50):  8.833e+02  3.224e+02  8.098e+01  4.261e+01
+[0.50, 0.65):  8.632e+02  2.909e+02  6.698e+01  3.140e+01
+# cp_camb emulator
+[0.20, 0.35):  5.689e+02  2.201e+02  5.946e+01  3.524e+01
+[0.35, 0.50):  8.825e+02  3.219e+02  8.077e+01  4.243e+01
+[0.50, 0.65):  8.622e+02  2.903e+02  6.677e+01  3.125e+01
+# (emu - camb) / camb
+[0.20, 0.35): -6.542e-04 -1.330e-03 -2.231e-03 -3.827e-03
+[0.35, 0.50): -8.832e-04 -1.645e-03 -2.638e-03 -4.264e-03
+[0.50, 0.65): -1.140e-03 -1.993e-03 -3.088e-03 -4.768e-03
+worst (z_bin,lambda_bin) = (2, 3)  rel = -4.768e-03
+
+# --- decomposition (from smoke_hmf_nonu pair) ---
+HMF cluster-band p99 at z=0: 2.367e-03
+HMF cluster-band p99 at z=1: 4.348e-02
+max |P_emu - P_camb|/P_camb at z=0: 1.318e-02
+D_emu/D_camb - 1 at z=1: 3.734e-04

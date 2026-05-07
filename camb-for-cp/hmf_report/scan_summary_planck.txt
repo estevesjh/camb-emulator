@@ -1,0 +1,37 @@
+n_valid = 97 / 100 planned
+Omega_m   range sampled = [0.2407, 0.3899]
+log1e10As range sampled = [2.9514, 3.1397]
+# Planck 2018 center = (0.3153, 3.044)
+
+# per-bin |rel N| percentiles over the scan (%):
+z=[0.20, 0.35)     lambda=[20, 30)     median=0.057  p95=0.110  max=3.395
+z=[0.20, 0.35)     lambda=[30, 45)     median=0.065  p95=0.155  max=1.053
+z=[0.20, 0.35)     lambda=[45, 60)     median=0.098  p95=0.250  max=3.420
+z=[0.20, 0.35)     lambda=[60, $\infty$) median=0.208  p95=0.502  max=6.684
+z=[0.35, 0.50)     lambda=[20, 30)     median=0.067  p95=0.117  max=3.227
+z=[0.35, 0.50)     lambda=[30, 45)     median=0.072  p95=0.187  max=0.984
+z=[0.35, 0.50)     lambda=[45, 60)     median=0.119  p95=0.294  max=3.539
+z=[0.35, 0.50)     lambda=[60, $\infty$) median=0.227  p95=0.540  max=7.251
+z=[0.50, 0.65)     lambda=[20, 30)     median=0.068  p95=0.133  max=3.054
+z=[0.50, 0.65)     lambda=[30, 45)     median=0.081  p95=0.224  max=0.867
+z=[0.50, 0.65)     lambda=[45, 60)     median=0.144  p95=0.335  max=3.754
+z=[0.50, 0.65)     lambda=[60, $\infty$) median=0.251  p95=0.589  max=7.860
+
+worst: sample 42 (Om=0.3624, lnAs=2.9913), z_bin=2, lambda_bin=3, rel=-7.860%
+
+# P(k,z=0) rel-error summary over the scan (%):
+         k         med          p5         p95     rho(Om)   rho(lnAs)
+  0.000987      +0.095      +0.045      +0.123      +0.681      -0.131
+    0.0031      +0.011      -0.043      +0.157      +0.958      -0.069
+   0.00975      +0.312      +0.237      +0.436      +0.927      -0.057
+    0.0306      -0.503      -1.032      +1.532      +0.780      -0.032
+    0.0962      -0.352      -1.363      +4.313      +0.446      -0.082
+     0.302      -0.026      -0.173      +0.028      +0.799      -0.027
+      1.04      +0.043      -0.133      +0.062      -0.694      +0.069
+      2.99      +0.061      -0.110      +0.083      -0.678      +0.078
+
+# growth rel-error summary over the scan (%):
+z=0.3: median=+0.0130  range=[+0.0106, +0.0164]  rho(Omega_m)=-0.997
+z=0.5: median=+0.0230  range=[+0.0190, +0.0288]  rho(Omega_m)=-0.996
+z=0.7: median=+0.0342  range=[+0.0286, +0.0425]  rho(Omega_m)=-0.995
+z=1.0: median=+0.0524  range=[+0.0442, +0.0648]  rho(Omega_m)=-0.994

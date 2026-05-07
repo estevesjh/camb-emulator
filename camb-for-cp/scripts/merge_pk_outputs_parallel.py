@@ -27,12 +27,26 @@ def count_lines(filepath):
     return int(result.stdout.split()[0])
 
 
+def _rank_key(path):
+    """Sort helper: extract the integer after 'rank' or 'slice' in a filename."""
+    base = os.path.basename(path)
+    for tag in ("rank", "slice"):
+        if tag in base:
+            rest = base.split(tag, 1)[1]
+            digits = ""
+            for ch in rest:
+                if ch.isdigit():
+                    digits += ch
+                else:
+                    break
+            if digits:
+                return int(digits)
+    return base
+
+
 def merge_files(pattern, output_file):
     """Merge all files matching pattern into output_file via streaming cat."""
-    files = sorted(
-        glob.glob(pattern),
-        key=lambda x: int(x.split('rank')[1].split('.')[0])
-    )
+    files = sorted(glob.glob(pattern), key=_rank_key)
 
     if not files:
         print("No files found matching: {}".format(pattern))
@@ -69,32 +83,44 @@ def main():
     )
     parser.add_argument("--clean", action="store_true",
                         help="Delete rank files after merging")
+    parser.add_argument("--names", nargs="+",
+                        default=["linear", "boost"],
+                        help="Base names to merge; expects {name}_rank*.dat "
+                             "-> {name}.dat (default: linear boost)")
+    parser.add_argument("--glob-template", default="{name}_rank*.dat",
+                        help="Glob template with {name} placeholder for the "
+                             "input pattern (default: {name}_rank*.dat). For "
+                             "array-task slices use 'slice*_{name}.dat'.")
+    parser.add_argument("--output-template", default="{name}.dat",
+                        help="Output filename template with {name} placeholder "
+                             "(default: {name}.dat).")
     args = parser.parse_args()
 
-    # Merge linear files
-    n_linear = merge_files("linear_rank*.dat", "linear.dat")
+    counts = {}
+    for name in args.names:
+        pattern = args.glob_template.format(name=name)
+        out = args.output_template.format(name=name)
+        counts[name] = merge_files(pattern, out)
 
-    # Merge boost files
-    n_boost = merge_files("boost_rank*.dat", "boost.dat")
-
-    if n_linear == 0 and n_boost == 0:
+    if all(v == 0 for v in counts.values()):
         print("No rank files found. Nothing to merge.")
         return
 
-    # Verify counts match
-    if n_linear != n_boost:
-        print("WARNING: linear ({}) and boost ({}) row counts don't match!".format(
-            n_linear, n_boost))
+    distinct = set(v for v in counts.values() if v > 0)
+    if len(distinct) > 1:
+        print("WARNING: row counts differ across outputs: {}".format(counts))
 
-    # Clean up rank files if requested
     if args.clean:
         removed = 0
-        for f in glob.glob("linear_rank*.dat") + glob.glob("boost_rank*.dat"):
-            os.remove(f)
-            removed += 1
-        print("Cleaned up {} rank files".format(removed))
+        for name in args.names:
+            for f in glob.glob(args.glob_template.format(name=name)):
+                os.remove(f)
+                removed += 1
+        print(f"Cleaned up {removed} input files")
 
-    print("\nDone! Output files: linear.dat, boost.dat")
+    outs = ", ".join(args.output_template.format(name=name)
+                     for name, n in counts.items() if n > 0)
+    print(f"\nDone! Output files: {outs}")
 
 
 if __name__ == "__main__":

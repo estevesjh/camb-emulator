@@ -21,4 +21,72 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
+camb-for-cp/logs/
+
+# LaTeX build artifacts
+*.aux
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Cosmology dataset / training artifacts (regeneratable from scripts)
+# Large raw + derived data files from the CAMB -> clean -> train pipeline.
+# Keep the scripts, configs, and the final report; never the bytes they emit.
+camb-for-cp/LHS_params*.npz
+camb-for-cp/LHS_params*.list
+camb-for-cp/data/
+camb-for-cp/slices_v2/
+camb-for-cp/slices_v2_planck/
+
+# Per-slice CAMB outputs (hundreds of files, total ~2 GB)
+camb-for-cp/slice*_linear_v2.dat
+camb-for-cp/slice*_linear_nonu_v2.dat
+camb-for-cp/slice*_k_modes_v2.txt
+camb-for-cp/slice*planck_linear_v2.dat
+camb-for-cp/slice*planck_linear_nonu_v2.dat
+camb-for-cp/slice*planck_k_modes_v2.txt
+
+# Merged / split .dat files (up to 1.5 GB each)
+camb-for-cp/linear.dat
+camb-for-cp/linear_train.dat
+camb-for-cp/linear_test.dat
+camb-for-cp/boost.dat
+camb-for-cp/boost_train.dat
+camb-for-cp/boost_test.dat
+camb-for-cp/linear_v2.dat
+camb-for-cp/linear_v2_train.dat
+camb-for-cp/linear_v2_test.dat
+camb-for-cp/linear_v2_planck.dat
+camb-for-cp/linear_nonu_v2.dat
+camb-for-cp/linear_nonu_v2_train.dat
+camb-for-cp/linear_nonu_v2_test.dat
+camb-for-cp/linear_nonu_v2_planck.dat
+camb-for-cp/linear_v2c.dat
+camb-for-cp/linear_v2c_train.dat
+camb-for-cp/linear_v2c_test.dat
+camb-for-cp/linear_nonu_v2c.dat
+camb-for-cp/linear_nonu_v2c_train.dat
+camb-for-cp/linear_nonu_v2c_test.dat
+camb-for-cp/k_modes.txt
+camb-for-cp/k_modes_v2.txt
+
+# Training data (.npy cache), trained models, and CAMB raw outputs
+camb-for-cp/training_data/
+camb-for-cp/training_data_v2/
+camb-for-cp/training_data_v2c/
+camb-for-cp/output/
+camb-for-cp/output_v2/
+camb-for-cp/output_v2_array/
+camb-for-cp/output_v2_planck/
+camb-for-cp/output_v2_debug/
+camb-for-cp/*.pkl
+camb-for-cp/*_emulator.npz
+
+# Misc scratch
+camb-for-cp/*.png
+camb-for-cp/test_LHS_CAMB.*
+camb-for-cp/plots/
 

@@ -83,10 +83,34 @@ Branch `backup/pk-emulator-only` at commit `367f56d` preserves the working P(k)-
 
 ### Derived quantities (NOT emulated)
 The downstream CosmoSIS pipeline at `/global/common/software/des/jesteves/y1_mock_emcee.ini` reconstructs these from the emulated spectra:
-- **σ(R, z)** — `cosmosis-standard-library/boltzmann/sigma_cpp/sigma_cpp.py`, a GSL top-hat integral over P(k). ~1700 integrations for a full grid.
-- **dn/dM (Tinker)** — `cosmosis-standard-library/mass_function/mf_tinker/tinker_mf_module.so`; with `matter_power_lin_version = 2` it consumes **`cdm_baryon_power_lin`** (i.e. the new `linear_nonu` emulator), not `matter_power_lin`.
+- **D(z)** — linear growth factor. Because the v2 emulators train at z=0 only (see `camb_pipeline_training_v2.ini`: `zmin=0, zmax=0.05, nz=2`), any z>0 P(k) must be reconstructed as `P(k, z) = D(z)² · P(k, 0)`. D(z) comes from `cosmosis-standard-library/structure/growth_factor/interface.so` — a standalone ODE solver (`params:` `zmin, zmax, dz`). Measured timing on Perlmutter login: **~3 ms per sample** for 201 z-bins (z ∈ [0, 2], dz = 0.01); negligible compared to mf_tinker. Ini order must be `consistency → growth_factor → cp_camb → mf_tinker → …`. Note: `structure/extract_growth` is NOT usable here because it derives D(z) from an existing P(k, z) grid — circular when the emulator only produces P(k, z=0).
+- **σ(R, z)** — `cosmosis-standard-library/boltzmann/sigma_cpp/sigma_cpp.py`, a GSL top-hat integral over P(k). ~1700 integrations for a full grid. **Bottleneck** in the emulator-fed pipeline (~200 ms/sample vs the P(k) emulator's ~10 ms). The "Planned: direct σ(M, z) emulator" section below proposes replacing this.
+- **dn/dM (Tinker)** — `cosmosis-standard-library/mass_function/mf_tinker/tinker_mf_module.so`; with `matter_power_lin_version = 2` it consumes **`cdm_baryon_power_lin`** (i.e. the new `linear_nonu` emulator), not `matter_power_lin`. Currently mf_tinker runs its own σ integral internally; the σ emulator (below) aims to replace that too.
 - **b(M)** — `y3_cluster_cpp/y3_buzzard/haloModel.py:134`, `cluster_toolkit.peak_height.nu_at_M(M, k, P_lin, Ω_m)` + Tinker-2010 eq. 6. Consumes `matter_power_lin` (total).
 - **ξ_NL(r, z)** — `y3_cluster_cpp/y3_buzzard/haloModel.py:181`, `cluster_toolkit.xi.xi_mm_at_r(R, k, P_nl)`. Consumes `matter_power_nl` (total).
+
+### Planned: direct σ(M, z) emulator (follow-on to the three P(k) spectra)
+
+**Motivation.** End-to-end timing of the `y3_cluster_cpp` smoke pipeline with the cp_camb + λ-emulator replacements (see
+`/global/common/software/des/jesteves/y3_cluster_cpp/CLAUDE.md`) showed that `mf_tinker` is now the bottleneck (~200 ms/sample,
+~2/3 of total pipeline time), because it runs `sigma_cpp`-style top-hat integrals over the emulated P(k) grid for every mass and
+redshift requested. Replacing that integration with a direct NN emulator of σ(M, z) skips the `sigma_cpp` call entirely and
+should bring `mf_tinker` (or its replacement) closer to the ~10 ms range of the P(k) emulators.
+
+**Specification.**
+1. **Quantity**: `sigma` — σ(M, z) where M is halo mass in M☉/h and z is redshift. Output is log σ (or log₁₀ σ — match the sign convention of the P(k) emulators for consistency, default log₁₀).
+2. **Training source**: run `cosmosis-standard-library/boltzmann/sigma_cpp/sigma_cpp.py` from a CAMB-fed datablock and capture the `sigma_r` / `sigma_m` grid per cosmology. Alternative cheaper path: derive σ(R) analytically from each CAMB P(k) in the existing training pipeline (same top-hat integral sigma_cpp does, but embedded in `save_pk_training.py`). The CAMB P(k) training data is already generated — no new MPI-CAMB job needed, only an extra sigma top-hat integral per (cosmology, z).
+3. **Grid axes**:
+   - M: 200 log-spaced points in [1e10, 1e16] M☉/h (cluster mass range with margin on each side). Match this to whatever `mf_tinker` internally samples so the NN output can be consumed by the downstream Tinker formula without re-interpolation.
+   - z: same 100 redshifts as the P(k) training (z ∈ [0, 2]).
+4. **Parameter order**: reuse the P(k) convention `[h0, omega_m, omega_b, n_s, log1e10As, mnu, z]` — M is NOT an input; the NN emits σ on the full M grid as a vector output (analogous to k being the output axis for the P(k) emulators). This keeps the architecture identical (4×512 hidden, CosmoPower activation) and the batch inference shape matches.
+5. **Registry entry** (when the registry refactor lands): `sigma` with source `sigma_cpp/sigma_m`, grid file `M_modes.txt`, cleaning predicate = same-finite-and-positive check, log₁₀ transform.
+
+**Downstream integration.**
+- Add a new inference module alongside `cp_camb`: e.g. `cp_sigma` that writes `sigma_r`/`sigma_m` to the datablock in the exact format `mf_tinker` and `tinker_mass_function_2008.c` expect. Then wire `mf_tinker` to skip its own σ computation — or swap `mf_tinker` for a lightweight wrapper that consumes the pre-computed σ directly.
+- Cross-check: run `mf_tinker` twice, once fed by real sigma_cpp, once fed by the σ emulator, on held-out cosmologies. Target: <1% on dn/dM across the cluster-mass range at z ∈ [0.1, 0.8] — the same budget as the ξ_NL / b(M) checks planned for the P(k) emulators.
+
+**Trade-off**: this costs one more emulator to train, maintain, and validate, but removes the single largest runtime cost in the post-CAMB pipeline. Only attempt after the three P(k) emulators are accuracy-validated (<1% on b(M), ξ_NL, dn/dM) so the σ emulator isn't masking a P(k) training deficit.
 
 ### Refactor — registry-based rewrite
 - Introduce `scripts/spectra_registry.py` declaring each quantity: name, CAMB datablock source, grid file, cleaning predicate, dtype, optional per-quantity network overrides.
