@@ -91,3 +91,5 @@ camb-for-cp/test_LHS_CAMB.*
 camb-for-cp/plots/
 
 camb-for-cp/slices_smoke_*/
+camb-for-cp/smoke*_*.dat
+camb-for-cp/smoke*_k_modes_v2.txt
