@@ -23,17 +23,14 @@
 # Submit (after Step 2 sliced the LHSes into slices_1M_{wide,dense,ultra}):
 #   sbatch slurm/submit_camb_1M_debug.sh
 
+export OMP_NUM_THREADS=1
+
+# y3_cluster_cpp prescription: just source setup-cosmosis-nersc. It
+# already does 'module load python/3.9' (+conda init) + 'conda activate'.
 export TOP_DIR=/global/common/software/des/jesteves
 export COSMOSIS_REPO_DIR=${TOP_DIR}/cosmosis
 export CSL_DIR=${TOP_DIR}/cosmosis-standard-library
 export COSMOSIS_STANDARD_LIBRARY=${CSL_DIR}
-export OMP_NUM_THREADS=1
-
-# Initialise conda in the fresh SLURM shell (.bashrc is NOT sourced in batch).
-# Pin python/3.9: default 'module load python' = 3.13 breaks y3cl_je.
-module load python/3.9
-source "$(conda info --base)/etc/profile.d/conda.sh"
-
 source ${COSMOSIS_REPO_DIR}/setup-cosmosis-nersc \
     /global/common/software/des/common/Conda_Envs/y3cl_je
 

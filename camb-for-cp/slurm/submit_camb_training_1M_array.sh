@@ -27,19 +27,18 @@
 # don't touch the same inode. Wall is 2.5 h (safe above the 2 h median we
 # measured for Planck-dense cosmologies on the v2c run).
 
+export OMP_NUM_THREADS=1
+
+# Use the y3_cluster_cpp prescription (~/cosmosis_init.sh convention):
+# source setup-cosmosis-nersc directly. It internally runs
+# 'module load python/3.9' (which in turn 'module load conda' + activates
+# nersc-python) and then 'conda activate y3cl_je'. No manual conda init
+# needed -- doing it before 'module load python' was actively breaking
+# things.
 export TOP_DIR=/global/common/software/des/jesteves
 export COSMOSIS_REPO_DIR=${TOP_DIR}/cosmosis
 export CSL_DIR=${TOP_DIR}/cosmosis-standard-library
 export COSMOSIS_STANDARD_LIBRARY=${CSL_DIR}
-export OMP_NUM_THREADS=1
-
-# Initialise conda in the fresh SLURM shell (.bashrc is NOT sourced in batch).
-# Pin python/3.9: the default 'module load python' now loads 3.13 on
-# Perlmutter, which breaks the y3cl_je env (built for 3.9 -- 'import camb'
-# fails under 3.13).
-module load python/3.9
-source "$(conda info --base)/etc/profile.d/conda.sh"
-
 source ${COSMOSIS_REPO_DIR}/setup-cosmosis-nersc \
     /global/common/software/des/common/Conda_Envs/y3cl_je
 
