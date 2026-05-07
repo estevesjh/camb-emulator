@@ -11,7 +11,7 @@
 
 set -eu
 
-REPO=/pscratch/sd/j/jesteves/github/camb-emulator/camb-for-cp
+REPO="$(dirname "$(realpath "$0")")"
 cd "$REPO"
 
 PYBIN_CAMB=/global/common/software/des/common/Conda_Envs/y3cl_je/bin/python

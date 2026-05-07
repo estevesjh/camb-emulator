@@ -16,7 +16,7 @@
 # or   sbatch --export=SPECTRA=linear_nonu_v2 slurm/submit_train_v2.sh
 # Defaults to linear_v2 if SPECTRA is unset.
 
-cd /pscratch/sd/j/jesteves/github/camb-emulator/camb-for-cp
+cd "$(dirname "$(realpath "$0")")/.."
 
 module load tensorflow/2.15.0
 

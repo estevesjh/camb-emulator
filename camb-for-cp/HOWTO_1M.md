@@ -3,6 +3,24 @@
 Target audience: a Perlmutter-experienced collaborator reproducing or
 extending the v2c emulators toward a **0.1 % accuracy** v3 emulator.
 
+## Setup (one-time, any user on Perlmutter)
+
+The repo is self-contained and path-portable -- clone it anywhere in
+your own `$PSCRATCH` and run from there. All SLURM scripts resolve
+paths relative to their own location, so no edits are required.
+
+```bash
+cd $PSCRATCH
+git clone git@github.com:estevesjh/camb-emulator.git
+cd camb-emulator/camb-for-cp
+```
+
+The cosmosis and cosmopower conda envs live under
+`/global/common/software/des/common/Conda_Envs/` and are world-readable,
+so any `des`-group member can use them directly without copying.
+No write access to `/pscratch/sd/j/jesteves/` is required; all outputs
+land under your own clone.
+
 ## Scale and budget
 
 | Quantity | Value |

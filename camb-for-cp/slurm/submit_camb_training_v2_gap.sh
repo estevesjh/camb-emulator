@@ -25,7 +25,7 @@ export COSMOSIS_STANDARD_LIBRARY=${CSL_DIR}
 export OMP_NUM_THREADS=1
 source ${COSMOSIS_REPO_DIR}/setup-cosmosis-nersc /global/common/software/des/common/Conda_Envs/y3cl_je
 
-cd /pscratch/sd/j/jesteves/github/camb-emulator/camb-for-cp
+cd "$(dirname "$(realpath "$0")")/.."
 
 case ${SLURM_ARRAY_TASK_ID} in
     0) SLICE_FILE=./slices_v2/slice_006_half1.list; PREFIX=slice006a_ ;;

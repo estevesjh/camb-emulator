@@ -10,7 +10,7 @@
 #SBATCH --output=logs/clean_v2c_%j.out
 #SBATCH --error=logs/clean_v2c_%j.err
 
-cd /pscratch/sd/j/jesteves/github/camb-emulator/camb-for-cp
+cd "$(dirname "$(realpath "$0")")/.."
 
 PYBIN=/global/common/software/des/common/Conda_Envs/jesteves_cosmopower/bin/python
 echo "Using python: ${PYBIN}"
