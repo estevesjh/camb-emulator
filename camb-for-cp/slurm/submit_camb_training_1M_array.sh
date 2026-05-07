@@ -27,8 +27,6 @@
 # don't touch the same inode. Wall is 2.5 h (safe above the 2 h median we
 # measured for Planck-dense cosmologies on the v2c run).
 
-set -e
-
 export TOP_DIR=/global/common/software/des/jesteves
 export COSMOSIS_REPO_DIR=${TOP_DIR}/cosmosis
 export CSL_DIR=${TOP_DIR}/cosmosis-standard-library
