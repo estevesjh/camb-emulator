@@ -34,8 +34,10 @@ export COSMOSIS_STANDARD_LIBRARY=${CSL_DIR}
 export OMP_NUM_THREADS=1
 
 # Initialise conda in the fresh SLURM shell (.bashrc is NOT sourced in batch).
-# Without this, the 'conda activate' inside setup-cosmosis-nersc fails.
-module load python
+# Pin python/3.9: the default 'module load python' now loads 3.13 on
+# Perlmutter, which breaks the y3cl_je env (built for 3.9 -- 'import camb'
+# fails under 3.13).
+module load python/3.9
 source "$(conda info --base)/etc/profile.d/conda.sh"
 
 source ${COSMOSIS_REPO_DIR}/setup-cosmosis-nersc \
