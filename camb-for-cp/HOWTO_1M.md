@@ -118,6 +118,29 @@ camb-for-cp/
 3. **Slice each box into 1000-sample chunks** — `split_lhs_for_array.py`.
    Writes `slices_1M_{wide,dense,ultra}/slice_NNN.list` (300, 500, 200
    slices respectively).
+4a. **Debug-queue smoke test (strongly recommended)** — before burning
+    the full ~1000 CPU-h, run a 3-task array on the `debug` qos that
+    processes 100 real LHS samples per box:
+    ```bash
+    sbatch slurm/submit_camb_1M_debug.sh
+    ```
+    Debug qos's `MaxJobsPU=2` limit means the 3 tasks run in 2-then-1
+    waves, total ~10 min. Each task:
+    - Picks `wide`/`dense`/`ultra` by `$SLURM_ARRAY_TASK_ID` (0/1/2).
+    - Takes the first 100 rows of that box's `slice_000.list`.
+    - Writes `slice_debug_{box}_linear_v2.dat` and `_linear_nonu_v2.dat`.
+
+    After tasks finish, verify every box wrote 100 rows × 512 cols:
+    ```bash
+    for box in wide dense ultra; do
+        f=slice_debug_${box}_linear_v2.dat
+        echo "$box: rows=$(wc -l < $f), cols=$(head -1 $f | awk '{print NF}')"
+    done
+    ```
+    Expected: `wide: rows=100, cols=512` (same for dense, ultra). If
+    any row count is <100 or any log is empty, fix the issue before
+    launching Step 4.
+
 4. **Submit three CAMB arrays on shared qos**:
    ```bash
    sbatch --array=0-299%50 --export=BOX=wide   slurm/submit_camb_training_1M_array.sh

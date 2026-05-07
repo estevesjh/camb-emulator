@@ -58,6 +58,30 @@ ${PYBIN_CAMB} scripts/split_lhs_for_array.py \
     data/LHS_params_1M_ultra.list slices_1M_ultra 200
 
 # ===========================================================================
+# Step 2a -- Debug-queue smoke test (STRONGLY RECOMMENDED before Step 3)
+# ===========================================================================
+# Before burning ~1000 CPU-hours on the shared qos, run a 3-task debug
+# array that exercises wide/dense/ultra with 100 real LHS samples each.
+# 30 min wall per task; debug qos's MaxJobsPU=2 means the 3 tasks run in
+# 2 + 1 waves, total ~10 min. Inspect logs/camb_1M_dbg_*.out to confirm
+# cosmosis + CAMB + save module all work before scaling up.
+#
+# Run AFTER Step 2 has created slices_1M_{wide,dense,ultra}/slice_000.list.
+
+echo ""
+echo "Recommended: submit debug smoke test before the full arrays:"
+echo "  sbatch slurm/submit_camb_1M_debug.sh"
+echo ""
+echo "After tasks complete, check that each box wrote 100 rows x 512 cols:"
+echo "  for box in wide dense ultra; do"
+echo "    f=slice_debug_\${box}_linear_v2.dat"
+echo "    echo \"\$box: rows=\$(wc -l < \$f), cols=\$(head -1 \$f | awk '{print NF}')\""
+echo "  done"
+echo ""
+echo "Press ENTER once the debug smoke looks good to continue to Step 3."
+read -r _ || true
+
+# ===========================================================================
 # Step 3 -- Submit the three CAMB arrays on the shared qos
 # ===========================================================================
 # shared qos on Perlmutter: 1 CPU per task, proven stable in the v2c run.
