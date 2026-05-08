@@ -198,6 +198,17 @@ for box in wide dense ultra; do
 done
 ```
 
+## Files you can safely ignore
+
+- `output_1M_array/camb_1M_*.txt` — cosmosis's list-sampler bookkeeping
+  output (post, prior, extras, one row per cosmology). With our
+  `verbosity = quiet` config these files are created but mostly empty;
+  the real training data goes to `slice{NNN}{box}_linear_v2.dat` via
+  the custom `save_pk_training_v2.py` module. Safe to
+  `rm -rf output_1M_array/` at any point; the directory is gitignored.
+- `cosmosis_*.log` / `run_*.log` — cosmosis and slurm internal debug
+  traces. Keep only if you're debugging a crash.
+
 ## Failure modes (from the v2c session, flagged for prevention)
 
 1. **conda activate in SLURM batch fails** (`.bashrc` not sourced).
