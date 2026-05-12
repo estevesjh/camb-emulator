@@ -28,7 +28,8 @@ def count_lines(filepath):
 
 
 def _rank_key(path):
-    """Sort helper: extract the integer after 'rank' or 'slice' in a filename."""
+    """Sort helper: extract the integer after 'rank' or 'slice' in a filename.
+    Returns (index, basename) so Python 3 doesn't mix int and str in sort."""
     base = os.path.basename(path)
     for tag in ("rank", "slice"):
         if tag in base:
@@ -40,8 +41,8 @@ def _rank_key(path):
                 else:
                     break
             if digits:
-                return int(digits)
-    return base
+                return (int(digits), base)
+    return (-1, base)
 
 
 def merge_files(pattern, output_file):
