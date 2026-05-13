@@ -28,16 +28,22 @@ parser.add_argument("--nsamples", type=int, default=0,
                     help="Number of training samples (0 = use all)")
 parser.add_argument("--spectra", type=str, default="linear_v2",
                     choices=["linear_v2", "linear_nonu_v2",
-                             "linear_v2c", "linear_nonu_v2c"],
+                             "linear_v2c", "linear_nonu_v2c",
+                             "linear_v3c", "linear_nonu_v3c"],
                     help="Spectra type (default: linear_v2)")
 parser.add_argument("--data-dir", type=str, default=None,
                     help="Override DATA_DIR (default: ./training_data_v2 "
                          "for *_v2, ./training_data_v2c for *_v2c)")
 args = parser.parse_args()
 
-DATA_DIR = (args.data_dir if args.data_dir is not None
-            else "./training_data_v2c" if args.spectra.endswith("_v2c")
-            else "./training_data_v2")
+if args.data_dir is not None:
+    DATA_DIR = args.data_dir
+elif args.spectra.endswith("_v3c"):
+    DATA_DIR = "./training_data_v3c"
+elif args.spectra.endswith("_v2c"):
+    DATA_DIR = "./training_data_v2c"
+else:
+    DATA_DIR = "./training_data_v2"
 SPECTRA_TYPE = args.spectra
 MODEL_NAME = f"camb_{SPECTRA_TYPE}_emulator"
 
