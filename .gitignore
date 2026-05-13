@@ -95,3 +95,4 @@ camb-for-cp/smoke*_*.dat
 camb-for-cp/smoke*_k_modes_v2.txt
 camb-for-cp/output_1M_array/
 camb-for-cp/slice_debug_*
+camb-for-cp/training_data_v3c
